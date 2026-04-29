@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with login credentials.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "manager"] }
+      },
+      "required": ["email", "role"]
+    },
+    "ParkingSlot": {
+      "title": "Parking Slot",
+      "description": "Represents a physical parking space.",
+      "type": "object",
+      "properties": {
+        "slotNumber": { "type": "string" },
+        "status": { "type": "string", "enum": ["Available", "Occupied"] }
+      },
+      "required": ["slotNumber", "status"]
+    },
+    "Car": {
+      "title": "Car",
+      "description": "Details of the vehicle entering the parking.",
+      "type": "object",
+      "properties": {
+        "plateNumber": { "type": "string" },
+        "driverName": { "type": "string" },
+        "phoneNumber": { "type": "string" }
+      },
+      "required": ["plateNumber", "driverName", "phoneNumber"]
+    },
+    "ParkingRecord": {
+      "title": "Parking Record",
+      "description": "Logs the entry and exit of a car in a slot.",
+      "type": "object",
+      "properties": {
+        "plateNumber": { "type": "string" },
+        "slotNumber": { "type": "string" },
+        "entryTime": { "type": "string", "format": "date-time" },
+        "exitTime": { "type": "string", "format": "date-time" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "status": { "type": "string", "enum": ["Active", "Completed", "Paid"] },
+        "totalFee": { "type": "number" }
+      },
+      "required": ["plateNumber", "slotNumber", "entryTime", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Financial transaction for a parking record.",
+      "type": "object",
+      "properties": {
+        "recordId": { "type": "string" },
+        "amountPaid": { "type": "number" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "plateNumber": { "type": "string" }
+      },
+      "required": ["recordId", "amountPaid", "paymentDate", "plateNumber"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/parkingSlots/{slotId}": {
+      "schema": "ParkingSlot",
+      "description": "List of parking slots"
+    },
+    "/cars/{plateNumber}": {
+      "schema": "Car",
+      "description": "Registered cars"
+    },
+    "/parkingRecords/{recordId}": {
+      "schema": "ParkingRecord",
+      "description": "Parking history"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payment records"
+    }
+  }
+}

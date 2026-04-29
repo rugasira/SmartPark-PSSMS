@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'uid']) 
+        && data.keys().size() == 3
+        && data.email is string && data.email.size() <= 100
+        && data.role in ['admin', 'manager']
+        && data.uid == request.auth.uid;
+    }
+
+    function isValidParkingSlot(data) {
+      return data.keys().hasAll(['slotNumber', 'status'])
+        && data.keys().size() >= 2
+        && data.slotNumber is string && data.slotNumber.size() <= 20
+        && data.status in ['Available', 'Occupied'];
+    }
+
+    function isValidCar(data) {
+      return data.keys().hasAll(['plateNumber', 'driverName', 'phoneNumber'])
+        && data.keys().size() >= 3
+        && data.plateNumber is string && data.plateNumber.size() <= 20
+        && data.driverName is string && data.driverName.size() <= 100
+        && data.phoneNumber is string && data.phoneNumber.size() <= 20;
+    }
+
+    function isValidParkingRecord(data) {
+      return data.keys().hasAll(['plateNumber', 'slotNumber', 'entryTime', 'status'])
+        && data.keys().size() >= 4
+        && data.plateNumber is string && data.plateNumber.size() <= 20
+        && data.slotNumber is string && data.slotNumber.size() <= 20
+        && data.status in ['Active', 'Completed', 'Paid'];
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['recordId', 'amountPaid', 'paymentDate', 'plateNumber'])
+        && data.keys().size() >= 4
+        && data.recordId is string
+        && data.amountPaid is number && data.amountPaid >= 0
+        && data.plateNumber is string;
+    }
+
+    // --- Collection Matches ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'role']);
+    }
+
+    match /parkingSlots/{slotId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidParkingSlot(incoming());
+      allow update: if isSignedIn() && isValidParkingSlot(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+    }
+
+    match /cars/{carId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidCar(incoming());
+    }
+
+    match /parkingRecords/{recordId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidParkingRecord(incoming());
+      allow update: if isSignedIn() && isValidParkingRecord(incoming())
+        && (
+          // Action: Check Out
+          incoming().diff(existing()).affectedKeys().hasOnly(['exitTime', 'duration', 'totalFee', 'status'])
+          || 
+          // Action: Pay
+          incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+        );
+      allow delete: if isSignedIn();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidPayment(incoming());
+    }
+  }
+}
